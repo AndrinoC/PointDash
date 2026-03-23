@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dots & Boxes Online</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-2: #0c1628;
+      --panel: rgba(12, 19, 36, 0.9);
+      --panel-2: rgba(19, 29, 53, 0.85);
+      --panel-border: rgba(148, 163, 184, 0.15);
+      --text: #e5eefc;
+      --muted: #9fb0cb;
+      --blue: #2563eb;
+      --blue-soft: rgba(37, 99, 235, 0.2);
+      --blue-preview: rgba(37, 99, 235, 0.34);
+      --red: #dc2626;
+      --red-soft: rgba(220, 38, 38, 0.2);
+      --red-preview: rgba(220, 38, 38, 0.34);
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --point: #f8fafc;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+      --board-size: min(98vw, calc(100vh - 220px), 1560px);
+      --line-width: 6;
+      --point-radius: 4.2;
+      --hit-width: 28;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: clamp(8px, 1.8vw, 22px);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(220, 38, 38, 0.18), transparent 24%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .shell {
+      width: min(1700px, 100%);
+      margin: 0 auto;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.45fr) minmax(260px, auto);
+      gap: 18px;
+      padding: clamp(18px, 2vw, 28px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
+      align-items: start;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.45rem, 3vw, 2.2rem);
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 70ch;
+      font-size: clamp(0.95rem, 1.35vw, 1.04rem);
+    }
+
+    .right-col {
+      display: grid;
+      gap: 12px;
+      justify-items: end;
+    }
+
+    .status-grid, .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      color: var(--text);
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .pill strong {
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot.blue { background: var(--blue); }
+    .dot.red { background: var(--red); }
+
+    button,
+    .ghost-btn,
+    .segmented button,
+    .size-btn,
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn,
+    .ghost-btn,
+    .size-btn,
+    .segmented button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 15px;
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.16s ease, background 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+      background: rgba(31, 41, 55, 0.95);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+    }
+
+    button:hover,
+    .primary-btn:hover,
+    .secondary-btn:hover,
+    .danger-btn:hover,
+    .ghost-btn:hover,
+    .size-btn:hover,
+    .segmented button:hover {
+      transform: translateY(-1px);
+      background: #334155;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+    }
+
+    button:disabled,
+    .primary-btn:disabled,
+    .secondary-btn:disabled,
+    .danger-btn:disabled,
+    .ghost-btn:disabled,
+    .size-btn:disabled,
+    .segmented button:disabled {
+      opacity: 0.46;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(59, 130, 246, 0.85));
+    }
+
+    .primary-btn:hover {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 1), rgba(59, 130, 246, 0.95));
+    }
+
+    .secondary-btn {
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .danger-btn {
+      background: rgba(127, 29, 29, 0.94);
+    }
+
+    .stage {
+      position: relative;
+      padding: clamp(14px, 1.6vw, 28px);
+      display: grid;
+      place-items: center;
+      min-height: min(1000px, calc(100vh - 160px));
+    }
+
+    .board-card {
+      width: 100%;
+      display: grid;
+      place-items: center;
+    }
+
+    .board-wrap {
+      width: min(var(--board-size), 100%);
+      aspect-ratio: 1;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+        rgba(255,255,255,0.012);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: manipulation;
+    }
+
+    .point {
+      fill: var(--point);
+      opacity: 0.98;
+    }
+
+    .box-fill {
+      stroke: none;
+    }
+
+    .drawn-line {
+      stroke-width: var(--line-width);
+      stroke-linecap: round;
+    }
+
+    .preview-line {
+      stroke-width: var(--line-width);
+      stroke-linecap: round;
+    }
+
+    .segment-hit {
+      stroke: transparent;
+      stroke-width: var(--hit-width);
+      stroke-linecap: round;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .segment-hit:focus-visible {
+      stroke: rgba(255,255,255,0.12);
+    }
+
+    .menu-overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 2vw, 28px);
+      background: linear-gradient(180deg, rgba(5, 10, 20, 0.74), rgba(5, 10, 20, 0.82));
+      backdrop-filter: blur(8px);
+      z-index: 12;
+    }
+
+    .menu-card {
+      width: min(980px, 100%);
+      border-radius: 28px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: linear-gradient(180deg, rgba(16, 24, 44, 0.96), rgba(10, 16, 30, 0.96));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      overflow: hidden;
+    }
+
+    .menu-head {
+      padding: clamp(22px, 2vw, 30px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .menu-body {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+      gap: 18px;
+      padding: clamp(18px, 2vw, 26px);
+    }
+
+    .panel {
+      background: var(--panel-2);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 1.08rem;
+    }
+
+    .panel p,
+    .panel li,
+    .mini-note {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      padding: 6px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .segmented button.active,
+    .size-btn.active {
+      background: rgba(37, 99, 235, 0.9);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .size-btn {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+
+    .form-row {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(96, 165, 250, 0.7);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.86rem;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .hint {
+      padding: 0 clamp(18px, 2vw, 28px) clamp(18px, 2vw, 24px);
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .message {
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      margin-top: 14px;
+      display: none;
+    }
+
+    .message.show { display: block; }
+    .message.warn { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.1); }
+    .message.success { border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.1); }
+    .message.error { border-color: rgba(239, 68, 68, 0.35); background: rgba(127, 29, 29, 0.22); }
+
+    .banner {
+      width: min(960px, 100%);
+      margin: 0 auto 16px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .banner.show { display: flex; }
+
+    .banner strong { font-size: 1rem; }
+
+    .small {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .footer-link-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .online-only,
+    .local-only,
+    .playing-only {
+      display: none;
+    }
+
+    .show-online .online-only,
+    .show-local .local-only,
+    .is-playing .playing-only {
+      display: inline-flex;
+    }
+
+    @media (max-width: 1080px) {
+      :root {
+        --board-size: min(98vw, calc(100vh - 260px), 1360px);
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .right-col,
+      .status-grid,
+      .controls {
+        justify-items: start;
+        justify-content: flex-start;
+      }
+
+      .menu-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      :root {
+        --board-size: min(99vw, calc(100vh - 300px), 1180px);
+        --line-width: 6.2;
+        --hit-width: 34;
+      }
+
+      body {
+        padding: 6px;
+      }
+
+      .shell,
+      .menu-card,
+      .board-wrap {
+        border-radius: 20px;
+      }
+
+      .size-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="appShell">
+    <div class="topbar">
+      <div>
+        <h1>Dots &amp; Boxes</h1>
+        <p class="subtitle" id="subtitleText">
+          Pick a board size, draw only horizontal or vertical neighboring lines, and complete boxes to keep your turn.
+        </p>
+      </div>
+
+      <div class="right-col">
+        <div class="status-grid">
+          <div class="pill"><span class="dot blue" id="turnDot"></span><span id="turnLabel">Blue turn</span></div>
+          <div class="pill">Blue: <strong id="blueScore">0</strong></div>
+          <div class="pill">Red: <strong id="redScore">0</strong></div>
+          <div class="pill">Board: <strong id="boardLabel">20×20</strong></div>
+          <div class="pill">Mode: <strong id="modeLabel">Local</strong></div>
+          <div class="pill online-only" id="roomPill">Code: <strong class="mono" id="roomCodeLabel">------</strong></div>
+        </div>
+
+        <div class="controls">
+          <button id="menuBtn" type="button">Menu</button>
+          <button id="copyInviteBtn" class="online-only" type="button">Copy invite</button>
+          <button id="undoBtn" class="local-only" type="button">Undo</button>
+          <button id="restartBtn" type="button">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-card">
+          <div class="menu-head">
+            <h1 style="margin-bottom:10px;">Start a game</h1>
+            <p class="subtitle" style="max-width:72ch;">
+              Choose a board size, then play locally on one device or online with a room code. Completed boxes fill with the color that closed them, and that player goes again.
+            </p>
+          </div>
+
+          <div class="menu-body">
+            <div class="panel">
+              <h2>Board setup</h2>
+              <div class="segmented" role="tablist" aria-label="Game mode selector">
+                <button id="localTabBtn" type="button" class="active">Local</button>
+                <button id="onlineTabBtn" type="button">Online</button>
+              </div>
+
+              <div class="form-row">
+                <label>Board size</label>
+                <div class="size-grid" id="sizeGrid">
+                  <button type="button" class="size-btn" data-size="8">8×8</button>
+                  <button type="button" class="size-btn" data-size="12">12×12</button>
+                  <button type="button" class="size-btn" data-size="16">16×16</button>
+                  <button type="button" class="size-btn active" data-size="20">20×20</button>
+                </div>
+              </div>
+
+              <div id="localPanel">
+                <p class="mini-note">Perfect for one screen. Blue starts. Turns alternate unless a move closes one or more boxes.</p>
+                <div class="btn-row">
+                  <button id="startLocalBtn" class="primary-btn" type="button">Start local game</button>
+                </div>
+              </div>
+
+              <div id="onlinePanel" style="display:none;">
+                <div class="form-row">
+                  <label for="roomInput">Join with a room code</label>
+                  <input id="roomInput" type="text" maxlength="8" placeholder="Enter code" autocomplete="off" spellcheck="false" />
+                </div>
+
+                <div class="btn-row">
+                  <button id="hostBtn" class="primary-btn" type="button">Create room</button>
+                  <button id="joinBtn" class="secondary-btn" type="button">Join room</button>
+                </div>
+
+                <div class="message warn show" id="onlineNote">
+                  This online mode is ready for static hosting, but it needs a Firebase web app config plus Realtime Database and anonymous auth enabled.
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h2>Online setup for GitHub Pages</h2>
+              <p class="mini-note">
+                Paste your Firebase web config here once, or replace the placeholder config inside the file before publishing. The config saves in this browser only.
+              </p>
+
+              <div class="form-row">
+                <label for="firebaseConfigInput">Firebase config JSON</label>
+                <textarea id="firebaseConfigInput" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"...","appId":"..."}'></textarea>
+              </div>
+
+              <div class="btn-row">
+                <button id="saveConfigBtn" class="secondary-btn" type="button">Save config</button>
+                <button id="clearConfigBtn" class="danger-btn" type="button">Clear config</button>
+                <button id="testConfigBtn" class="ghost-btn" type="button">Test connection</button>
+              </div>
+
+              <div class="message" id="configMessage"></div>
+
+              <div class="footer-link-row">
+                <span class="small">Invite flow: host creates a code, guest opens the same site and enters the code.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-card">
+        <div class="banner" id="banner">
+          <div>
+            <strong id="bannerTitle">Blue turn</strong>
+            <div class="small" id="bannerText">Draw a free segment between two neighboring points.</div>
+          </div>
+          <div class="small" id="playerRoleText">Local game</div>
+        </div>
+
+        <div class="board-wrap">
+          <svg id="board" viewBox="0 0 1000 1000" aria-label="Interactive dots and boxes board">
+            <g id="fillsLayer"></g>
+            <g id="linesLayer"></g>
+            <g id="previewLayer"></g>
+            <g id="pointsLayer"></g>
+            <g id="hitsLayer"></g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint" id="footerHint">
+      Hover a still-open segment to preview it. Completed lines are removed from the clickable layer so already-filled edges cannot be clicked again.
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
+    import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
+    import { getDatabase, ref, get, onValue, runTransaction } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js';
+
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: 'PASTE_YOUR_API_KEY',
+      authDomain: 'PASTE_YOUR_AUTH_DOMAIN',
+      databaseURL: 'PASTE_YOUR_DATABASE_URL',
+      projectId: 'PASTE_YOUR_PROJECT_ID',
+      appId: 'PASTE_YOUR_APP_ID'
+    };
+
+    const VIEW_SIZE = 1000;
+    const PADDING = 52;
+    const ROOM_CODE_LENGTH = 6;
+    const STORAGE_KEY_CONFIG = 'dotsBoxesFirebaseConfig';
+    const STORAGE_KEY_SIZE = 'dotsBoxesPreferredSize';
+    const urlParams = new URLSearchParams(window.location.search);
+    const suggestedRoomCode = (urlParams.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+
+    const COLORS = [
+      {
+        name: 'Blue',
+        solid: '#2563eb',
+        preview: 'rgba(37, 99, 235, 0.34)',
+        fill: 'rgba(37, 99, 235, 0.2)'
+      },
+      {
+        name: 'Red',
+        solid: '#dc2626',
+        preview: 'rgba(220, 38, 38, 0.34)',
+        fill: 'rgba(220, 38, 38, 0.2)'
+      }
+    ];
+
+    const menuOverlay = document.getElementById('menuOverlay');
+    const stage = document.getElementById('stage');
+    const subtitleText = document.getElementById('subtitleText');
+    const footerHint = document.getElementById('footerHint');
+    const modeLabel = document.getElementById('modeLabel');
+    const boardLabel = document.getElementById('boardLabel');
+    const turnDot = document.getElementById('turnDot');
+    const turnLabel = document.getElementById('turnLabel');
+    const blueScore = document.getElementById('blueScore');
+    const redScore = document.getElementById('redScore');
+    const roomCodeLabel = document.getElementById('roomCodeLabel');
+    const roomPill = document.getElementById('roomPill');
+    const banner = document.getElementById('banner');
+    const bannerTitle = document.getElementById('bannerTitle');
+    const bannerText = document.getElementById('bannerText');
+    const playerRoleText = document.getElementById('playerRoleText');
+    const menuBtn = document.getElementById('menuBtn');
+    const copyInviteBtn = document.getElementById('copyInviteBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    const localTabBtn = document.getElementById('localTabBtn');
+    const onlineTabBtn = document.getElementById('onlineTabBtn');
+    const localPanel = document.getElementById('localPanel');
+    const onlinePanel = document.getElementById('onlinePanel');
+    const sizeButtons = Array.from(document.querySelectorAll('.size-btn'));
+    const startLocalBtn = document.getElementById('startLocalBtn');
+    const hostBtn = document.getElementById('hostBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const roomInput = document.getElementById('roomInput');
+    const onlineNote = document.getElementById('onlineNote');
+    const firebaseConfigInput = document.getElementById('firebaseConfigInput');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const clearConfigBtn = document.getElementById('clearConfigBtn');
+    const testConfigBtn = document.getElementById('testConfigBtn');
+    const configMessage = document.getElementById('configMessage');
+
+    const board = document.getElementById('board');
+    const fillsLayer = document.getElementById('fillsLayer');
+    const linesLayer = document.getElementById('linesLayer');
+    const previewLayer = document.getElementById('previewLayer');
+    const pointsLayer = document.getElementById('pointsLayer');
+    const hitsLayer = document.getElementById('hitsLayer');
+
+    const state = {
+      uiMode: 'local',
+      selectedSize: Number(localStorage.getItem(STORAGE_KEY_SIZE) || '20'),
+      game: createEmptyGame(20),
+      currentMode: 'local',
+      roomCode: '',
+      hoveredSegmentId: null,
+      points: [],
+      geometry: null,
+      localHistory: [],
+      online: {
+        app: null,
+        auth: null,
+        db: null,
+        uid: null,
+        unsubscribeRoom: null,
+        roomDisconnectCleanup: null,
+        config: null,
+      }
+    };
+
+    roomInput.value = suggestedRoomCode;
+
+    function createEmptyGame(size) {
+      return {
+        size,
+        currentPlayerIndex: 0,
+        segments: {},
+        boxes: {},
+        scores: [0, 0],
+        finished: false,
+        winner: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        moveCount: 0,
+        status: 'idle',
+        hostUid: null,
+        guestUid: null,
+        lastMove: null,
+      };
+    }
+
+    function normalizeGame(raw, sizeFallback = 20) {
+      const size = Number(raw?.size || sizeFallback || 20);
+      const game = createEmptyGame(size);
+      if (!raw || typeof raw !== 'object') return game;
+
+      game.currentPlayerIndex = Number(raw.currentPlayerIndex || 0);
+      game.segments = raw.segments && typeof raw.segments === 'object' ? raw.segments : {};
+      game.boxes = raw.boxes && typeof raw.boxes === 'object' ? raw.boxes : {};
+      game.scores = Array.isArray(raw.scores) ? [Number(raw.scores[0] || 0), Number(raw.scores[1] || 0)] : countScoresFromBoxes(game.boxes);
+      game.finished = Boolean(raw.finished);
+      game.winner = raw.winner ?? null;
+      game.createdAt = Number(raw.createdAt || Date.now());
+      game.updatedAt = Number(raw.updatedAt || Date.now());
+      game.moveCount = Number(raw.moveCount || Object.keys(game.segments).length || 0);
+      game.status = raw.status || 'playing';
+      game.hostUid = raw.hostUid || null;
+      game.guestUid = raw.guestUid || null;
+      game.lastMove = raw.lastMove || null;
+      return game;
+    }
+
+    function countScoresFromBoxes(boxes) {
+      let blue = 0;
+      let red = 0;
+      for (const box of Object.values(boxes || {})) {
+        if (Number(box?.colorIndex) === 0) blue += 1;
+        if (Number(box?.colorIndex) === 1) red += 1;
+      }
+      return [blue, red];
+    }
+
+    function updateModeClasses() {
+      document.body.classList.toggle('show-online', state.currentMode === 'online');
+      document.body.classList.toggle('show-local', state.currentMode === 'local');
+      document.body.classList.toggle('is-playing', menuOverlay.hidden);
+      roomPill.style.display = state.currentMode === 'online' && state.roomCode ? 'inline-flex' : 'none';
+    }
+
+    function setMenuMode(mode) {
+      state.uiMode = mode;
+      const isLocal = mode === 'local';
+      localTabBtn.classList.toggle('active', isLocal);
+      onlineTabBtn.classList.toggle('active', !isLocal);
+      localPanel.style.display = isLocal ? '' : 'none';
+      onlinePanel.style.display = isLocal ? 'none' : '';
+    }
+
+    function setSelectedSize(size) {
+      state.selectedSize = size;
+      localStorage.setItem(STORAGE_KEY_SIZE, String(size));
+      for (const btn of sizeButtons) {
+        btn.classList.toggle('active', Number(btn.dataset.size) === size);
+      }
+      boardLabel.textContent = `${size}×${size}`;
+    }
+
+    function showMenu(show) {
+      menuOverlay.hidden = !show;
+      banner.classList.toggle('show', !show);
+      updateModeClasses();
+    }
+
+    function showConfigMessage(text, kind = 'warn') {
+      configMessage.textContent = text;
+      configMessage.className = `message ${kind} show`;
+    }
+
+    function clearConfigMessage() {
+      configMessage.className = 'message';
+      configMessage.textContent = '';
+    }
+
+    function isPlaceholderConfig(config) {
+      if (!config) return true;
+      const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'appId'];
+      return required.some((key) => !config[key] || String(config[key]).startsWith('PASTE_'));
+    }
+
+    function parseConfigText(text) {
+      try {
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object') throw new Error('Config must be a JSON object.');
+        const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'appId'];
+        for (const key of required) {
+          if (!parsed[key]) throw new Error(`Missing ${key}.`);
+        }
+        return { ok: true, value: parsed };
+      } catch (error) {
+        return { ok: false, error: error.message || 'Could not parse JSON.' };
+      }
+    }
+
+    function loadSavedConfig() {
+      const saved = localStorage.getItem(STORAGE_KEY_CONFIG);
+      if (saved) {
+        const parsed = parseConfigText(saved);
+        if (parsed.ok) return parsed.value;
+      }
+      if (!isPlaceholderConfig(DEFAULT_FIREBASE_CONFIG)) return DEFAULT_FIREBASE_CONFIG;
+      return null;
+    }
+
+    async function ensureFirebaseReady() {
+      if (state.online.db && state.online.uid) return true;
+      if (!state.online.config) {
+        const loaded = loadSavedConfig();
+        if (loaded) state.online.config = loaded;
+      }
+      if (!state.online.config || isPlaceholderConfig(state.online.config)) {
+        throw new Error('Add a real Firebase config first.');
+      }
+
+      if (!state.online.app) {
+        const app = getApps()[0] || initializeApp(state.online.config);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        state.online.app = app;
+        state.online.auth = auth;
+        state.online.db = db;
+      }
+
+      if (!state.online.auth.currentUser) {
+        await signInAnonymously(state.online.auth);
+      }
+      state.online.uid = state.online.auth.currentUser?.uid || null;
+      if (!state.online.uid) throw new Error('Anonymous sign-in failed.');
+      return true;
+    }
+
+    function randomCode(length = ROOM_CODE_LENGTH) {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let value = '';
+      const cryptoValues = new Uint32Array(length);
+      crypto.getRandomValues(cryptoValues);
+      for (let i = 0; i < length; i += 1) {
+        value += alphabet[cryptoValues[i] % alphabet.length];
+      }
+      return value;
+    }
+
+    function buildGeometry(size) {
+      const gap = (VIEW_SIZE - PADDING * 2) / (size - 1);
+      const points = [];
+      for (let row = 0; row < size; row += 1) {
+        const line = [];
+        for (let col = 0; col < size; col += 1) {
+          line.push({
+            row,
+            col,
+            x: PADDING + col * gap,
+            y: PADDING + row * gap,
+          });
+        }
+        points.push(line);
+      }
+      return { size, gap, points };
+    }
+
+    function segmentId(kind, row, col) {
+      return `${kind}-${row}-${col}`;
+    }
+
+    function boxId(row, col) {
+      return `b-${row}-${col}`;
+    }
+
+    function getSegmentMeta(id, size = state.game.size) {
+      const [kind, rowText, colText] = id.split('-');
+      const row = Number(rowText);
+      const col = Number(colText);
+      const geometry = state.geometry?.size === size ? state.geometry : buildGeometry(size);
+      if (kind === 'h') {
+        return {
+          id,
+          kind,
+          row,
+          col,
+          a: geometry.points[row][col],
+          b: geometry.points[row][col + 1],
+        };
+      }
+      return {
+        id,
+        kind,
+        row,
+        col,
+        a: geometry.points[row][col],
+        b: geometry.points[row + 1][col],
+      };
+    }
+
+    function getBoxEdges(row, col) {
+      return [
+        segmentId('h', row, col),
+        segmentId('h', row + 1, col),
+        segmentId('v', row, col),
+        segmentId('v', row, col + 1),
+      ];
+    }
+
+    function getAdjacentBoxes(segment, size = state.game.size) {
+      const boxes = [];
+      if (segment.kind === 'h') {
+        if (segment.row > 0) boxes.push({ row: segment.row - 1, col: segment.col });
+        if (segment.row < size - 1) boxes.push({ row: segment.row, col: segment.col });
+      } else {
+        if (segment.col > 0) boxes.push({ row: segment.row, col: segment.col - 1 });
+        if (segment.col < size - 1) boxes.push({ row: segment.row, col: segment.col });
+      }
+      return boxes.filter(({ row, col }) => row >= 0 && row < size - 1 && col >= 0 && col < size - 1);
+    }
+
+    function totalBoxes(size) {
+      return (size - 1) * (size - 1);
+    }
+
+    function cloneGame(game) {
+      return {
+        ...game,
+        segments: { ...game.segments },
+        boxes: { ...game.boxes },
+        scores: [...game.scores],
+      };
+    }
+
+    function applyMoveToGame(currentGame, segmentIdValue, actorUid = null) {
+      const game = cloneGame(normalizeGame(currentGame, currentGame?.size || state.selectedSize));
+      if (game.finished) {
+        return { accepted: false, reason: 'Game finished.' };
+      }
+      if (game.segments[segmentIdValue]) {
+        return { accepted: false, reason: 'Segment already filled.' };
+      }
+
+      const segment = getSegmentMeta(segmentIdValue, game.size);
+      game.segments[segmentIdValue] = {
+        colorIndex: game.currentPlayerIndex,
+        by: actorUid,
+        order: game.moveCount,
+      };
+
+      const completedBoxIds = [];
+      for (const candidate of getAdjacentBoxes(segment, game.size)) {
+        const id = boxId(candidate.row, candidate.col);
+        if (game.boxes[id]) continue;
+        const closed = getBoxEdges(candidate.row, candidate.col).every((edgeId) => Boolean(game.segments[edgeId]) || edgeId === segmentIdValue);
+        if (!closed) continue;
+        game.boxes[id] = {
+          colorIndex: game.currentPlayerIndex,
+          by: actorUid,
+          row: candidate.row,
+          col: candidate.col,
+        };
+        completedBoxIds.push(id);
+      }
+
+      game.scores = countScoresFromBoxes(game.boxes);
+      game.moveCount += 1;
+      game.updatedAt = Date.now();
+      game.lastMove = {
+        segmentId: segmentIdValue,
+        colorIndex: game.currentPlayerIndex,
+        completedBoxIds,
+        by: actorUid,
+      };
+
+      if (completedBoxIds.length === 0) {
+        game.currentPlayerIndex = (game.currentPlayerIndex + 1) % 2;
+      }
+
+      const allBoxesFilled = Object.keys(game.boxes).length >= totalBoxes(game.size);
+      if (allBoxesFilled) {
+        game.finished = true;
+        game.status = 'finished';
+        if (game.scores[0] === game.scores[1]) game.winner = 'tie';
+        else game.winner = game.scores[0] > game.scores[1] ? 0 : 1;
+      } else {
+        game.status = actorUid && game.guestUid ? 'playing' : game.status || 'playing';
+      }
+
+      return {
+        accepted: true,
+        game,
+        move: {
+          segmentId: segmentIdValue,
+          actorUid,
+          turnBefore: currentGame?.currentPlayerIndex ?? 0,
+          completedBoxIds,
+        }
+      };
+    }
+
+    function renderPoints() {
+      pointsLayer.innerHTML = '';
+      for (const row of state.geometry.points) {
+        for (const point of row) {
+          const dot = svgEl('circle', {
+            cx: point.x,
+            cy: point.y,
+            r: Math.max(3.5, Math.min(5.6, state.geometry.gap * 0.09)),
+            class: 'point'
+          });
+          pointsLayer.appendChild(dot);
+        }
+      }
+    }
+
+    function renderBoxes() {
+      fillsLayer.innerHTML = '';
+      for (const [id, box] of Object.entries(state.game.boxes)) {
+        const [, rowText, colText] = id.split('-');
+        const row = Number(rowText);
+        const col = Number(colText);
+        const rect = svgEl('rect', {
+          x: PADDING + col * state.geometry.gap,
+          y: PADDING + row * state.geometry.gap,
+          width: state.geometry.gap,
+          height: state.geometry.gap,
+          fill: COLORS[box.colorIndex].fill,
+          class: 'box-fill'
+        });
+        fillsLayer.appendChild(rect);
+      }
+    }
+
+    function renderLines() {
+      linesLayer.innerHTML = '';
+      for (const [id, lineInfo] of Object.entries(state.game.segments)) {
+        const meta = getSegmentMeta(id, state.game.size);
+        const line = svgEl('line', {
+          x1: meta.a.x,
+          y1: meta.a.y,
+          x2: meta.b.x,
+          y2: meta.b.y,
+          stroke: COLORS[lineInfo.colorIndex].solid,
+          class: 'drawn-line'
+        });
+        linesLayer.appendChild(line);
+      }
+    }
+
+    function canCurrentUserPlay(colorIndex = state.game.currentPlayerIndex) {
+      if (state.currentMode === 'local') return true;
+      const uid = state.online.uid;
+      if (!uid) return false;
+      if (colorIndex === 0) return uid === state.game.hostUid;
+      if (colorIndex === 1) return uid === state.game.guestUid;
+      return false;
+    }
+
+    function renderHits() {
+      hitsLayer.innerHTML = '';
+      const size = state.game.size;
+      const canPlayNow = canCurrentUserPlay();
+      const isOnlineWaiting = state.currentMode === 'online' && !state.game.guestUid;
+
+      for (let row = 0; row < size; row += 1) {
+        for (let col = 0; col < size - 1; col += 1) {
+          const id = segmentId('h', row, col);
+          if (state.game.segments[id]) continue;
+          if (!state.game.finished && canPlayNow && !isOnlineWaiting) {
+            createHit(getSegmentMeta(id, size));
+          }
+        }
+      }
+
+      for (let row = 0; row < size - 1; row += 1) {
+        for (let col = 0; col < size; col += 1) {
+          const id = segmentId('v', row, col);
+          if (state.game.segments[id]) continue;
+          if (!state.game.finished && canPlayNow && !isOnlineWaiting) {
+            createHit(getSegmentMeta(id, size));
+          }
+        }
+      }
+    }
+
+    function drawPreview(segmentIdValue) {
+      previewLayer.innerHTML = '';
+      state.hoveredSegmentId = null;
+      if (!segmentIdValue) return;
+      if (state.game.segments[segmentIdValue]) return;
+      if (!canCurrentUserPlay()) return;
+      if (state.currentMode === 'online' && !state.game.guestUid) return;
+
+      state.hoveredSegmentId = segmentIdValue;
+      const meta = getSegmentMeta(segmentIdValue, state.game.size);
+      const line = svgEl('line', {
+        x1: meta.a.x,
+        y1: meta.a.y,
+        x2: meta.b.x,
+        y2: meta.b.y,
+        stroke: COLORS[state.game.currentPlayerIndex].preview,
+        class: 'preview-line'
+      });
+      previewLayer.appendChild(line);
+    }
+
+    function clearPreview() {
+      state.hoveredSegmentId = null;
+      previewLayer.innerHTML = '';
+    }
+
+    function createHit(meta) {
+      const line = svgEl('line', {
+        x1: meta.a.x,
+        y1: meta.a.y,
+        x2: meta.b.x,
+        y2: meta.b.y,
+        class: 'segment-hit',
+        tabindex: '0',
+        role: 'button',
+        'aria-label': `${meta.kind === 'h' ? 'Horizontal' : 'Vertical'} segment at row ${meta.row + 1}, column ${meta.col + 1}`,
+      });
+
+      line.addEventListener('mouseenter', () => drawPreview(meta.id));
+      line.addEventListener('focus', () => drawPreview(meta.id));
+      line.addEventListener('mouseleave', clearPreview);
+      line.addEventListener('blur', clearPreview);
+      line.addEventListener('click', () => handleSegmentAction(meta.id));
+      line.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleSegmentAction(meta.id);
+        }
+      });
+      hitsLayer.appendChild(line);
+    }
+
+    function svgEl(name, attrs = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, value);
+      }
+      return el;
+    }
+
+    function renderBoard() {
+      state.geometry = buildGeometry(state.game.size);
+      board.setAttribute('aria-label', `Interactive ${state.game.size} by ${state.game.size} dots and boxes board`);
+      renderBoxes();
+      renderLines();
+      renderPoints();
+      renderHits();
+      updateStatusUi();
+      if (state.hoveredSegmentId && !state.game.segments[state.hoveredSegmentId]) {
+        drawPreview(state.hoveredSegmentId);
+      } else {
+        clearPreview();
+      }
+    }
+
+    function updateStatusUi() {
+      const active = COLORS[state.game.currentPlayerIndex] || COLORS[0];
+      turnDot.className = `dot ${active.name.toLowerCase()}`;
+      turnLabel.textContent = state.game.finished
+        ? state.game.winner === 'tie' ? 'Tie game' : `${COLORS[state.game.winner].name} wins`
+        : `${active.name} turn`;
+      blueScore.textContent = String(state.game.scores[0] || 0);
+      redScore.textContent = String(state.game.scores[1] || 0);
+      boardLabel.textContent = `${state.game.size}×${state.game.size}`;
+      modeLabel.textContent = state.currentMode === 'online' ? 'Online' : 'Local';
+      roomCodeLabel.textContent = state.roomCode || '------';
+      subtitleText.textContent = state.currentMode === 'online'
+        ? 'Create a room or join with a code. The host is Blue and the guest is Red. A player keeps the turn whenever they complete a box.'
+        : 'Hover any still-open neighboring segment to preview it. Click to place it. Completing a box fills it and keeps the turn.';
+      footerHint.textContent = state.currentMode === 'online'
+        ? 'Invite flow: share the site URL and room code. Only open segments stay clickable, so completed edges never catch clicks again.'
+        : 'Only still-open segments receive hover and click hit targets, which makes local play feel faster and prevents dead clicks.';
+
+      let bannerMain = 'Blue turn';
+      let bannerSub = 'Draw a free segment between two neighboring points.';
+      if (state.game.finished) {
+        bannerMain = state.game.winner === 'tie' ? 'Game over · Tie' : `Game over · ${COLORS[state.game.winner].name} wins`;
+        bannerSub = `Final score — Blue ${state.game.scores[0]} · Red ${state.game.scores[1]}`;
+      } else if (state.currentMode === 'online' && !state.game.guestUid) {
+        bannerMain = `Room ${state.roomCode || '------'} ready`;
+        bannerSub = 'Waiting for the second player to join.';
+      } else if (state.currentMode === 'online' && !canCurrentUserPlay()) {
+        bannerMain = `${active.name} turn`;
+        bannerSub = 'Waiting for the other player to move.';
+      } else if (state.game.lastMove?.completedBoxIds?.length) {
+        bannerMain = `${COLORS[state.game.lastMove.colorIndex].name} completed ${state.game.lastMove.completedBoxIds.length} box${state.game.lastMove.completedBoxIds.length > 1 ? 'es' : ''}`;
+        bannerSub = `${COLORS[state.game.lastMove.colorIndex].name} keeps the turn.`;
+      } else {
+        bannerMain = `${active.name} turn`;
+        bannerSub = 'Hover an open edge, then click to place it.';
+      }
+
+      bannerTitle.textContent = bannerMain;
+      bannerText.textContent = bannerSub;
+
+      if (state.currentMode === 'local') {
+        playerRoleText.textContent = 'Local game';
+      } else if (!state.online.uid) {
+        playerRoleText.textContent = 'Connecting…';
+      } else if (state.online.uid === state.game.hostUid) {
+        playerRoleText.textContent = 'You are Blue';
+      } else if (state.online.uid === state.game.guestUid) {
+        playerRoleText.textContent = 'You are Red';
+      } else {
+        playerRoleText.textContent = 'Spectator';
+      }
+
+      undoBtn.disabled = !(state.currentMode === 'local' && state.localHistory.length);
+      copyInviteBtn.disabled = !(state.currentMode === 'online' && state.roomCode);
+      updateModeClasses();
+    }
+
+    function startLocalGame(size = state.selectedSize) {
+      state.currentMode = 'local';
+      state.roomCode = '';
+      state.localHistory = [];
+      state.game = createEmptyGame(size);
+      state.game.status = 'playing';
+      showMenu(false);
+      renderBoard();
+    }
+
+    async function restartCurrentGame() {
+      if (state.currentMode === 'local') {
+        startLocalGame(state.game.size);
+        return;
+      }
+      if (!state.roomCode) {
+        showMenu(true);
+        return;
+      }
+      await ensureFirebaseReady();
+      const roomRef = ref(state.online.db, `rooms/${state.roomCode}`);
+      await runTransaction(roomRef, (room) => {
+        if (!room) return undefined;
+        const size = Number(room?.game?.size || room?.size || state.game.size);
+        const fresh = createEmptyGame(size);
+        fresh.status = room.guestUid ? 'playing' : 'waiting';
+        fresh.hostUid = room.hostUid || state.online.uid;
+        fresh.guestUid = room.guestUid || null;
+        room.size = size;
+        room.hostUid = fresh.hostUid;
+        room.guestUid = fresh.guestUid;
+        room.status = fresh.status;
+        room.updatedAt = Date.now();
+        room.game = {
+          ...fresh,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        return room;
+      });
+    }
+
+    function undoLocalMove() {
+      if (!state.localHistory.length || state.currentMode !== 'local') return;
+      const move = state.localHistory.pop();
+      delete state.game.segments[move.segmentId];
+      for (const id of move.completedBoxIds) {
+        delete state.game.boxes[id];
+      }
+      state.game.currentPlayerIndex = move.turnBefore;
+      state.game.finished = false;
+      state.game.winner = null;
+      state.game.status = 'playing';
+      state.game.scores = countScoresFromBoxes(state.game.boxes);
+      state.game.moveCount = Math.max(0, state.game.moveCount - 1);
+      state.game.lastMove = state.localHistory[state.localHistory.length - 1]?.lastMove || null;
+      renderBoard();
+    }
+
+    async function handleSegmentAction(segmentIdValue) {
+      if (state.game.finished) return;
+      if (state.currentMode === 'local') {
+        const result = applyMoveToGame(state.game, segmentIdValue);
+        if (!result.accepted) return;
+        state.game = result.game;
+        state.localHistory.push({
+          segmentId: segmentIdValue,
+          turnBefore: result.move.turnBefore,
+          completedBoxIds: result.move.completedBoxIds,
+          lastMove: result.game.lastMove,
+        });
+        renderBoard();
+        return;
+      }
+
+      if (!state.roomCode) return;
+      try {
+        await ensureFirebaseReady();
+        const roomRef = ref(state.online.db, `rooms/${state.roomCode}`);
+        await runTransaction(roomRef, (room) => {
+          if (!room || !room.game) return undefined;
+          const game = normalizeGame(room.game, room.size || state.game.size);
+          const actorUid = state.online.uid;
+          if (!actorUid) return undefined;
+          const actorIndex = actorUid === room.hostUid ? 0 : actorUid === room.guestUid ? 1 : -1;
+          if (actorIndex < 0) return undefined;
+          if (!room.guestUid) return undefined;
+          if (game.currentPlayerIndex !== actorIndex) return undefined;
+          const applied = applyMoveToGame({ ...game, hostUid: room.hostUid, guestUid: room.guestUid }, segmentIdValue, actorUid);
+          if (!applied.accepted) return undefined;
+          const nextGame = applied.game;
+          nextGame.hostUid = room.hostUid || null;
+          nextGame.guestUid = room.guestUid || null;
+          room.status = nextGame.finished ? 'finished' : 'playing';
+          room.updatedAt = Date.now();
+          room.game = nextGame;
+          return room;
+        });
+      } catch (error) {
+        showConfigMessage(error.message || 'Could not submit the move.', 'error');
+      }
+    }
+
+    function closeRoomSubscription() {
+      if (typeof state.online.unsubscribeRoom === 'function') {
+        state.online.unsubscribeRoom();
+      }
+      state.online.unsubscribeRoom = null;
+    }
+
+    async function openOnlineRoom(code) {
+      await ensureFirebaseReady();
+      closeRoomSubscription();
+      state.currentMode = 'online';
+      state.roomCode = code;
+      showMenu(false);
+      const roomRef = ref(state.online.db, `rooms/${code}`);
+      state.online.unsubscribeRoom = onValue(roomRef, (snapshot) => {
+        const room = snapshot.val();
+        if (!room || !room.game) {
+          state.game = createEmptyGame(state.selectedSize);
+          state.game.status = 'idle';
+          renderBoard();
+          return;
+        }
+        state.game = normalizeGame({ ...room.game, hostUid: room.hostUid, guestUid: room.guestUid }, room.size || room.game.size || state.selectedSize);
+        state.game.hostUid = room.hostUid || null;
+        state.game.guestUid = room.guestUid || null;
+        renderBoard();
+      });
+    }
+
+    async function createOnlineRoom() {
+      clearConfigMessage();
+      try {
+        await ensureFirebaseReady();
+        let createdCode = null;
+        for (let attempt = 0; attempt < 8 && !createdCode; attempt += 1) {
+          const code = randomCode();
+          const roomRef = ref(state.online.db, `rooms/${code}`);
+          const result = await runTransaction(roomRef, (room) => {
+            if (room) return undefined;
+            const game = createEmptyGame(state.selectedSize);
+            game.status = 'waiting';
+            game.hostUid = state.online.uid;
+            return {
+              code,
+              size: state.selectedSize,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              status: 'waiting',
+              hostUid: state.online.uid,
+              guestUid: null,
+              game,
+            };
+          });
+          if (result.committed) {
+            createdCode = code;
+          }
+        }
+        if (!createdCode) throw new Error('Could not generate a free room code.');
+        await openOnlineRoom(createdCode);
+        roomInput.value = createdCode;
+        showConfigMessage(`Room ${createdCode} created. Share the code and the site URL.`, 'success');
+        replaceRoomInUrl(createdCode);
+      } catch (error) {
+        showConfigMessage(error.message || 'Could not create room.', 'error');
+      }
+    }
+
+    async function joinOnlineRoom() {
+      clearConfigMessage();
+      const code = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      roomInput.value = code;
+      if (!code) {
+        showConfigMessage('Enter a room code first.', 'warn');
+        return;
+      }
+
+      try {
+        await ensureFirebaseReady();
+        const roomRef = ref(state.online.db, `rooms/${code}`);
+        const joinResult = await runTransaction(roomRef, (room) => {
+          if (!room || !room.game) return undefined;
+          if (room.hostUid === state.online.uid) return room;
+          if (room.guestUid && room.guestUid !== state.online.uid) return undefined;
+          room.guestUid = state.online.uid;
+          room.status = room.game?.finished ? 'finished' : 'playing';
+          const game = normalizeGame(room.game, room.size || state.selectedSize);
+          game.guestUid = state.online.uid;
+          game.hostUid = room.hostUid || null;
+          game.status = room.game?.finished ? 'finished' : 'playing';
+          room.game = game;
+          room.updatedAt = Date.now();
+          return room;
+        });
+
+        if (!joinResult.snapshot.exists()) {
+          throw new Error('Room not found.');
+        }
+
+        const roomAfter = joinResult.snapshot.val();
+        if (roomAfter.guestUid && roomAfter.guestUid !== state.online.uid && roomAfter.hostUid !== state.online.uid) {
+          throw new Error('That room is already full.');
+        }
+
+        await openOnlineRoom(code);
+        showConfigMessage(`Joined room ${code}.`, 'success');
+        replaceRoomInUrl(code);
+      } catch (error) {
+        showConfigMessage(error.message || 'Could not join room.', 'error');
+      }
+    }
+
+    function replaceRoomInUrl(code) {
+      const next = new URL(window.location.href);
+      if (code) next.searchParams.set('room', code);
+      else next.searchParams.delete('room');
+      history.replaceState({}, '', next);
+    }
+
+    async function copyInvite() {
+      if (!state.roomCode) return;
+      const inviteUrl = new URL(window.location.href);
+      inviteUrl.searchParams.set('room', state.roomCode);
+      const text = `Join my Dots & Boxes game: ${inviteUrl.toString()}\nRoom code: ${state.roomCode}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        showConfigMessage('Invite copied to clipboard.', 'success');
+      } catch {
+        showConfigMessage(`Copy failed. Share this code manually: ${state.roomCode}`, 'warn');
+      }
+    }
+
+    function saveConfig() {
+      clearConfigMessage();
+      const parsed = parseConfigText(firebaseConfigInput.value.trim());
+      if (!parsed.ok) {
+        showConfigMessage(parsed.error, 'error');
+        return;
+      }
+      state.online.config = parsed.value;
+      localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(parsed.value));
+      state.online.app = null;
+      state.online.auth = null;
+      state.online.db = null;
+      state.online.uid = null;
+      showConfigMessage('Firebase config saved in this browser.', 'success');
+    }
+
+    function clearConfig() {
+      localStorage.removeItem(STORAGE_KEY_CONFIG);
+      state.online.config = null;
+      state.online.app = null;
+      state.online.auth = null;
+      state.online.db = null;
+      state.online.uid = null;
+      firebaseConfigInput.value = '';
+      showConfigMessage('Saved config cleared.', 'warn');
+    }
+
+    async function testConfig() {
+      clearConfigMessage();
+      try {
+        await ensureFirebaseReady();
+        await get(ref(state.online.db, '.info/connected'));
+        showConfigMessage('Firebase connection looks good.', 'success');
+      } catch (error) {
+        showConfigMessage(error.message || 'Connection test failed.', 'error');
+      }
+    }
+
+    function hydrateConfigUi() {
+      const config = loadSavedConfig();
+      if (config) {
+        state.online.config = config;
+        firebaseConfigInput.value = JSON.stringify(config, null, 2);
+        onlineNote.textContent = 'Firebase config found. You can host or join rooms on this browser.';
+      } else {
+        firebaseConfigInput.value = JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2);
+        onlineNote.textContent = 'This online mode is ready for static hosting, but it needs a Firebase web app config plus Realtime Database and anonymous auth enabled.';
+      }
+    }
+
+    function wireEvents() {
+      localTabBtn.addEventListener('click', () => setMenuMode('local'));
+      onlineTabBtn.addEventListener('click', () => setMenuMode('online'));
+      sizeButtons.forEach((button) => {
+        button.addEventListener('click', () => setSelectedSize(Number(button.dataset.size)));
+      });
+      startLocalBtn.addEventListener('click', () => startLocalGame(state.selectedSize));
+      hostBtn.addEventListener('click', createOnlineRoom);
+      joinBtn.addEventListener('click', joinOnlineRoom);
+      roomInput.addEventListener('input', () => {
+        roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      });
+      saveConfigBtn.addEventListener('click', saveConfig);
+      clearConfigBtn.addEventListener('click', clearConfig);
+      testConfigBtn.addEventListener('click', testConfig);
+      menuBtn.addEventListener('click', () => showMenu(true));
+      copyInviteBtn.addEventListener('click', copyInvite);
+      undoBtn.addEventListener('click', undoLocalMove);
+      restartBtn.addEventListener('click', restartCurrentGame);
+      window.addEventListener('beforeunload', closeRoomSubscription);
+    }
+
+    function initBoard() {
+      setSelectedSize(state.selectedSize);
+      setMenuMode(suggestedRoomCode ? 'online' : 'local');
+      state.game = createEmptyGame(state.selectedSize);
+      state.game.status = 'idle';
+      renderBoard();
+      showMenu(true);
+      hydrateConfigUi();
+      updateStatusUi();
+    }
+
+    wireEvents();
+    initBoard();
+  </script>
+</body>
+</html>
