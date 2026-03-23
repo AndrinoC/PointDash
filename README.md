@@ -1,4 +1,3 @@
-[point_grid_lines_v4_README.md](https://github.com/user-attachments/files/26197079/point_grid_lines_v4_README.md)
 # Dots & Boxes Online — setup notes
 
 This HTML file works in two modes:
