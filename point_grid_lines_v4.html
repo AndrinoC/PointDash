@@ -733,7 +733,9 @@
         unsubscribeRoom: null,
         roomDisconnectCleanup: null,
         config: null,
-      }
+      },
+      autoJoinInFlight: false,
+      autoJoinLastTried: ''
     };
 
     roomInput.value = suggestedRoomCode;
@@ -788,11 +790,16 @@
       return [blue, red];
     }
 
+    function hasLockedOnlineMenu() {
+      return state.currentMode === 'online' && Boolean(state.game.hostUid && state.game.guestUid);
+    }
+
     function updateModeClasses() {
       document.body.classList.toggle('show-online', state.currentMode === 'online');
       document.body.classList.toggle('show-local', state.currentMode === 'local');
       document.body.classList.toggle('is-playing', menuOverlay.hidden);
       roomPill.style.display = state.currentMode === 'online' && state.roomCode ? 'inline-flex' : 'none';
+      menuBtn.hidden = hasLockedOnlineMenu();
     }
 
     function setMenuMode(mode) {
@@ -814,6 +821,12 @@
     }
 
     function showMenu(show) {
+      if (show && hasLockedOnlineMenu()) {
+        menuOverlay.hidden = true;
+        banner.classList.add('show');
+        updateModeClasses();
+        return;
+      }
       menuOverlay.hidden = !show;
       banner.classList.toggle('show', !show);
       updateModeClasses();
@@ -1261,6 +1274,10 @@
         playerRoleText.textContent = 'Spectator';
       }
 
+      if (hasLockedOnlineMenu() && !menuOverlay.hidden) {
+        showMenu(false);
+      }
+
       undoBtn.disabled = !(state.currentMode === 'local' && state.localHistory.length);
       copyInviteBtn.disabled = !(state.currentMode === 'online' && state.roomCode);
       updateModeClasses();
@@ -1440,13 +1457,16 @@
       }
     }
 
-    async function joinOnlineRoom() {
+    async function joinOnlineRoom(options = {}) {
+      const auto = Boolean(options.auto);
       clearConfigMessage();
-      const code = sanitizeRoomCode(roomInput.value);
+      const code = sanitizeRoomCode(roomInput.value || suggestedRoomCode);
       roomInput.value = code;
       if (!code) {
-        showConfigMessage('Enter a room code first.', 'warn');
-        return;
+        if (!auto) {
+          showConfigMessage('Enter a room code first.', 'warn');
+        }
+        return false;
       }
 
       try {
@@ -1515,10 +1535,29 @@
         }
 
         await openOnlineRoom(code);
-        showConfigMessage(`Joined room ${code}.`, 'success');
+        showConfigMessage(auto ? `Connected to room ${code}.` : `Joined room ${code}.`, 'success');
         replaceRoomInUrl(code);
+        return true;
       } catch (error) {
         showConfigMessage(error.message || 'Could not join room.', 'error');
+        return false;
+      }
+    }
+
+    async function maybeAutoJoinFromLink(force = false) {
+      const code = sanitizeRoomCode(suggestedRoomCode || roomInput.value);
+      if (!code || !state.online.config) return false;
+      if (state.autoJoinInFlight) return false;
+      if (!force && (state.roomCode === code || state.autoJoinLastTried === code)) return false;
+
+      state.autoJoinInFlight = true;
+      state.autoJoinLastTried = code;
+      setMenuMode('online');
+      roomInput.value = code;
+      try {
+        return await joinOnlineRoom({ auto: true });
+      } finally {
+        state.autoJoinInFlight = false;
       }
     }
 
@@ -1558,6 +1597,11 @@
       state.online.db = null;
       state.online.uid = null;
       showConfigMessage('Firebase config saved in this browser.', 'success');
+      if (suggestedRoomCode) {
+        queueMicrotask(() => {
+          maybeAutoJoinFromLink(true);
+        });
+      }
     }
 
     function clearConfig() {
@@ -1608,7 +1652,10 @@
       saveConfigBtn.addEventListener('click', saveConfig);
       clearConfigBtn.addEventListener('click', clearConfig);
       testConfigBtn.addEventListener('click', testConfig);
-      menuBtn.addEventListener('click', () => showMenu(true));
+      menuBtn.addEventListener('click', () => {
+        if (hasLockedOnlineMenu()) return;
+        showMenu(true);
+      });
       copyInviteBtn.addEventListener('click', copyInvite);
       undoBtn.addEventListener('click', undoLocalMove);
       restartBtn.addEventListener('click', restartCurrentGame);
@@ -1624,6 +1671,11 @@
       showMenu(true);
       hydrateConfigUi();
       updateStatusUi();
+      if (suggestedRoomCode) {
+        queueMicrotask(() => {
+          maybeAutoJoinFromLink(true);
+        });
+      }
     }
 
     wireEvents();
