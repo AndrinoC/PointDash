@@ -1452,29 +1452,65 @@
       try {
         await ensureFirebaseReady();
         const safeCode = sanitizeRoomCode(code);
-      if (!safeCode) throw new Error('Invalid room code.');
-      const roomRef = ref(state.online.db, `rooms/${safeCode}`);
-        const joinResult = await runTransaction(roomRef, (room) => {
-          if (!room || !room.game) return undefined;
-          if (room.hostUid === state.online.uid) return room;
-          if (room.guestUid && room.guestUid !== state.online.uid) return undefined;
-          room.guestUid = state.online.uid;
-          room.status = room.game?.finished ? 'finished' : 'playing';
-          const game = normalizeGame(room.game, room.size || state.selectedSize);
-          game.guestUid = state.online.uid;
-          game.hostUid = room.hostUid || null;
-          game.status = room.game?.finished ? 'finished' : 'playing';
-          room.game = game;
-          room.updatedAt = Date.now();
-          return room;
-        });
+        if (!safeCode) throw new Error('Invalid room code.');
+        const roomRef = ref(state.online.db, `rooms/${safeCode}`);
 
-        if (!joinResult.snapshot.exists()) {
+        const existingSnap = await get(roomRef);
+        if (!existingSnap.exists() || !existingSnap.val()?.game) {
           throw new Error('Room not found.');
         }
 
-        const roomAfter = joinResult.snapshot.val();
-        if (roomAfter.guestUid && roomAfter.guestUid !== state.online.uid && roomAfter.hostUid !== state.online.uid) {
+        const existingRoom = existingSnap.val();
+        if (
+          existingRoom.guestUid &&
+          existingRoom.guestUid !== state.online.uid &&
+          existingRoom.hostUid !== state.online.uid
+        ) {
+          throw new Error('That room is already full.');
+        }
+
+        const joinResult = await runTransaction(roomRef, (room) => {
+          const baseRoom = room && room.game ? room : existingRoom;
+          if (!baseRoom || !baseRoom.game) {
+            return existingRoom;
+          }
+
+          const game = normalizeGame(baseRoom.game, baseRoom.size || state.selectedSize);
+
+          if (baseRoom.hostUid === state.online.uid) {
+            game.hostUid = baseRoom.hostUid || null;
+            game.guestUid = baseRoom.guestUid || null;
+            game.status = game.finished ? 'finished' : (baseRoom.guestUid ? 'playing' : 'waiting');
+            baseRoom.game = game;
+            baseRoom.status = game.status;
+            baseRoom.updatedAt = Date.now();
+            return baseRoom;
+          }
+
+          if (baseRoom.guestUid && baseRoom.guestUid !== state.online.uid) {
+            return baseRoom;
+          }
+
+          baseRoom.guestUid = state.online.uid;
+          baseRoom.status = game.finished ? 'finished' : 'playing';
+          game.guestUid = state.online.uid;
+          game.hostUid = baseRoom.hostUid || null;
+          game.status = baseRoom.status;
+          baseRoom.game = game;
+          baseRoom.updatedAt = Date.now();
+          return baseRoom;
+        });
+
+        const roomAfter = joinResult.snapshot.val() || existingRoom;
+        if (!roomAfter || !roomAfter.game) {
+          throw new Error('Room not found.');
+        }
+
+        if (
+          roomAfter.guestUid &&
+          roomAfter.guestUid !== state.online.uid &&
+          roomAfter.hostUid !== state.online.uid
+        ) {
           throw new Error('That room is already full.');
         }
 
