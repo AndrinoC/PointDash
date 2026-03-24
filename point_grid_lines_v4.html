@@ -648,8 +648,13 @@
     const ROOM_CODE_LENGTH = 6;
     const STORAGE_KEY_CONFIG = 'dotsBoxesFirebaseConfig';
     const STORAGE_KEY_SIZE = 'dotsBoxesPreferredSize';
+
+    function sanitizeRoomCode(value) {
+      return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, ROOM_CODE_LENGTH);
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
-    const suggestedRoomCode = (urlParams.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const suggestedRoomCode = sanitizeRoomCode(urlParams.get('room') || '');
 
     const COLORS = [
       {
@@ -1375,9 +1380,11 @@
       await ensureFirebaseReady();
       closeRoomSubscription();
       state.currentMode = 'online';
-      state.roomCode = code;
+      const safeCode = sanitizeRoomCode(code);
+      if (!safeCode) throw new Error('Invalid room code.');
+      state.roomCode = safeCode;
       showMenu(false);
-      const roomRef = ref(state.online.db, `rooms/${code}`);
+      const roomRef = ref(state.online.db, `rooms/${safeCode}`);
       state.online.unsubscribeRoom = onValue(roomRef, (snapshot) => {
         const room = snapshot.val();
         if (!room || !room.game) {
@@ -1400,7 +1407,9 @@
         let createdCode = null;
         for (let attempt = 0; attempt < 8 && !createdCode; attempt += 1) {
           const code = randomCode();
-          const roomRef = ref(state.online.db, `rooms/${code}`);
+          const safeCode = sanitizeRoomCode(code);
+      if (!safeCode) throw new Error('Invalid room code.');
+      const roomRef = ref(state.online.db, `rooms/${safeCode}`);
           const result = await runTransaction(roomRef, (room) => {
             if (room) return undefined;
             const game = createEmptyGame(state.selectedSize);
@@ -1433,7 +1442,7 @@
 
     async function joinOnlineRoom() {
       clearConfigMessage();
-      const code = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      const code = sanitizeRoomCode(roomInput.value);
       roomInput.value = code;
       if (!code) {
         showConfigMessage('Enter a room code first.', 'warn');
@@ -1442,7 +1451,9 @@
 
       try {
         await ensureFirebaseReady();
-        const roomRef = ref(state.online.db, `rooms/${code}`);
+        const safeCode = sanitizeRoomCode(code);
+      if (!safeCode) throw new Error('Invalid room code.');
+      const roomRef = ref(state.online.db, `rooms/${safeCode}`);
         const joinResult = await runTransaction(roomRef, (room) => {
           if (!room || !room.game) return undefined;
           if (room.hostUid === state.online.uid) return room;
@@ -1477,7 +1488,8 @@
 
     function replaceRoomInUrl(code) {
       const next = new URL(window.location.href);
-      if (code) next.searchParams.set('room', code);
+      const safeCode = sanitizeRoomCode(code);
+      if (safeCode) next.searchParams.set('room', safeCode);
       else next.searchParams.delete('room');
       history.replaceState({}, '', next);
     }
@@ -1485,8 +1497,9 @@
     async function copyInvite() {
       if (!state.roomCode) return;
       const inviteUrl = new URL(window.location.href);
-      inviteUrl.searchParams.set('room', state.roomCode);
-      const text = `Join my Dots & Boxes game: ${inviteUrl.toString()}\nRoom code: ${state.roomCode}`;
+      const safeCode = sanitizeRoomCode(state.roomCode);
+      inviteUrl.searchParams.set('room', safeCode);
+      const text = `Join my Dots & Boxes game: ${inviteUrl.toString()}\nRoom code: ${safeCode}`;
       try {
         await navigator.clipboard.writeText(text);
         showConfigMessage('Invite copied to clipboard.', 'success');
@@ -1526,8 +1539,7 @@
       clearConfigMessage();
       try {
         await ensureFirebaseReady();
-        await get(ref(state.online.db, '.info/connected'));
-        showConfigMessage('Firebase connection looks good.', 'success');
+        showConfigMessage('Firebase config and anonymous auth look good.', 'success');
       } catch (error) {
         showConfigMessage(error.message || 'Connection test failed.', 'error');
       }
@@ -1555,7 +1567,7 @@
       hostBtn.addEventListener('click', createOnlineRoom);
       joinBtn.addEventListener('click', joinOnlineRoom);
       roomInput.addEventListener('input', () => {
-        roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        roomInput.value = sanitizeRoomCode(roomInput.value);
       });
       saveConfigBtn.addEventListener('click', saveConfig);
       clearConfigBtn.addEventListener('click', clearConfig);
